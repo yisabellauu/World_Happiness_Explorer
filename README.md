@@ -3,6 +3,7 @@
 Live-Demo: https://yisabellauuu.shinyapps.io/World-Happiness-Explorer/
 
 An interactive R Shiny application designed for exploring temporal happiness trends, analyzing bivariate relationships with socio-economic drivers, performing PCA dimensionality reduction, and dynamic linear regression modeling based on World Happiness Report data.
+
 ---
 ## Key Features
 - **Trend Exploration**: Track happiness trajectory (`Life Ladder`) per country across years (2008–2022).
@@ -12,4 +13,5 @@ An interactive R Shiny application designed for exploring temporal happiness tre
 
 
 **R Packages**: `shiny`, `bslib`, `tidyverse`, `plotly`, `broom`
+
 **Deployment**: shinyapps.io
