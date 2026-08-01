@@ -1,4 +1,3 @@
-# World_Happiness_Explorer
 # World Happiness & Socio-Economic Indicators Explorer
 
 [![Shiny App](https://yisabellauuu.shinyapps.io/World-Happiness-Explorer/)
