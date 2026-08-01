@@ -1,0 +1,267 @@
+---
+title: "World Happiness Drivers"
+subtitle: "A Regression Analysis of Economic, Social, and Health Factors"
+author: "Yue (Isabella) Cao"
+format:
+  html:
+    toc: true
+    toc-title: "Contents"
+    toc-location: left
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    code-summary: "Show code"
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(car)
+library(broom)
+
+whr <- read.csv("whr-2023.csv")
+```
+
+# Project Overview
+
+This project examines how economic, social, health, and institutional factors are associated with national happiness scores. Using World Happiness Report data from 2008 to 2022, multiple linear regression models are developed to identify which factors show the strongest relationships with Life Ladder scores.
+
+The analysis focuses on associations rather than causal effects. Because the data contain repeated country-year observations, results should be interpreted as relationships observed across countries and time.
+
+# Research Questions
+
+1. Which economic, social, health, and institutional factors are associated with Life Ladder scores?
+2. Which predictors show the strongest standardized associations after controlling for other variables?
+3. How do the relationships observed in 2022 compare with the overall 2008-2022 period?
+
+# Data Preparation
+
+```{r}
+model_variables <- c(
+  "Life.Ladder",
+  "Log.GDP.per.capita",
+  "Social.support",
+  "Healthy.life.expectancy.at.birth",
+  "Freedom.to.make.life.choices",
+  "Generosity",
+  "Perceptions.of.corruption"
+)
+
+whr_year <- whr %>%
+  filter(year >= 2008 & year <= 2022) %>%
+  select(Country.name, year, all_of(model_variables))
+```
+
+## Missing Values
+
+```{r}
+missing_summary <- whr_year %>%
+  summarise(across(all_of(model_variables), ~sum(is.na(.)))) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "missing_n"
+  ) %>%
+  mutate(
+    missing_percent = round(100 * missing_n / nrow(whr_year), 2)
+  )
+
+knitr::kable(
+  missing_summary,
+  caption = "Missing Values by Variable"
+)
+```
+
+```{r}
+model_data <- whr_year %>%
+  drop_na(all_of(model_variables))
+
+data_summary <- tibble(
+  original_rows = nrow(whr_year),
+  complete_rows = nrow(model_data),
+  excluded_rows = nrow(whr_year) - nrow(model_data),
+  excluded_percent = round(
+    100 * (nrow(whr_year)-nrow(model_data))/nrow(whr_year), 2
+  )
+)
+
+knitr::kable(
+  data_summary,
+  caption = "Complete-Case Data Summary"
+)
+```
+
+The selected variables contained 250 missing cells across 188 observations. Complete-case analysis excluded 188 country-year observations containing at least one missing model variable. Although this approach keeps the modeling process transparent, non-random missingness may affect the representativeness of the results.
+
+# Regression Analysis
+
+## Raw Coefficient Model
+
+```{r}
+raw_model <- lm(
+  Life.Ladder ~ Log.GDP.per.capita +
+    Social.support +
+    Healthy.life.expectancy.at.birth +
+    Freedom.to.make.life.choices +
+    Generosity +
+    Perceptions.of.corruption,
+  data = model_data
+)
+
+raw_table <- tidy(raw_model) %>%
+  mutate(
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 2),
+    p.value = format.pval(p.value, digits = 3, eps = 0.001)
+  )
+
+knitr::kable(
+  raw_table,
+  caption = "Raw Multiple Linear Regression Results"
+)
+```
+
+Raw coefficients describe the expected change in Life Ladder associated with a one-unit increase in each predictor while holding other variables constant. Because predictors are measured on different scales, raw coefficients should not be directly compared to determine relative importance.
+
+## Standardized Coefficient Model
+
+```{r}
+standardized_data <- model_data %>%
+  mutate(across(all_of(model_variables), ~as.numeric(scale(.x))))
+
+standardized_model <- lm(
+  Life.Ladder ~ Log.GDP.per.capita +
+    Social.support +
+    Healthy.life.expectancy.at.birth +
+    Freedom.to.make.life.choices +
+    Generosity +
+    Perceptions.of.corruption,
+  data = standardized_data
+)
+
+standardized_table <- tidy(standardized_model) %>%
+  mutate(
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 2),
+    p.value = format.pval(p.value, digits = 3, eps = 0.001)
+  )
+
+knitr::kable(
+  standardized_table,
+  caption = "Standardized Multiple Linear Regression Results"
+)
+```
+
+Standardized coefficients allow comparison of predictors measured on different scales. Based on the absolute standardized coefficients, logged GDP per capita showed the strongest association with Life Ladder scores, followed by social support. Healthy life expectancy and freedom to make life choices also showed positive associations, while generosity showed the weakest association among the predictors.
+
+# Model Validation
+
+## Residual Diagnostics
+
+```{r}
+old_par <- par(no.readonly = TRUE)
+par(mfrow = c(2,2))
+plot(raw_model)
+par(old_par)
+```
+
+The residual diagnostic plots were used to evaluate major linear regression assumptions. The Residuals vs Fitted plot assesses linearity and equal variance, the Normal Q-Q plot evaluates residual normality, the Scale-Location plot examines variance consistency, and the Residuals vs Leverage plot identifies potentially influential observations.
+
+## Multicollinearity
+
+```{r}
+vif_table <- tibble(
+  Predictor = names(vif(raw_model)),
+  VIF = round(as.numeric(vif(raw_model)), 2)
+)
+
+knitr::kable(
+  vif_table,
+  caption = "Variance Inflation Factors"
+)
+```
+
+VIF values below 5 indicate that multicollinearity is not a major concern. Logged GDP per capita showed the highest VIF because it shares information with other development indicators, but the level remains acceptable.
+
+# 2022 Cross-Sectional Analysis
+
+## Raw Model
+
+```{r}
+whr_2022 <- model_data %>%
+  filter(year == 2022)
+
+model_2022 <- lm(
+  Life.Ladder ~ Log.GDP.per.capita +
+    Social.support +
+    Healthy.life.expectancy.at.birth +
+    Freedom.to.make.life.choices +
+    Generosity +
+    Perceptions.of.corruption,
+  data = whr_2022
+)
+
+tidy(model_2022) %>%
+  mutate(
+    estimate = round(estimate,3),
+    p.value = format.pval(p.value, digits=3, eps=0.001)
+  ) %>%
+  knitr::kable(
+    caption = "2022 Multiple Linear Regression Results"
+  )
+```
+
+In the 2022 model, social support, freedom to make life choices, and perceptions of corruption were statistically significant predictors at the 5% significance level. GDP per capita, healthy life expectancy, and generosity were not statistically significant after controlling for the other variables.
+
+## 2022 Model Validation
+
+```{r}
+old_par <- par(no.readonly = TRUE)
+par(mfrow = c(2,2))
+plot(model_2022)
+par(old_par)
+```
+
+The diagnostic plots were examined using the same criteria as the pooled model. Because the 2022 model contains fewer observations, coefficient estimates should be interpreted with greater caution.
+
+```{r}
+tibble(
+  Predictor = names(vif(model_2022)),
+  VIF = round(as.numeric(vif(model_2022)),2)
+) %>%
+  knitr::kable(
+    caption="2022 Variance Inflation Factors"
+  )
+```
+
+The 2022 model showed higher VIF values for GDP-related predictors, suggesting moderate overlap among development indicators. Therefore, individual coefficients should be interpreted cautiously.
+
+# Insights and Suggestions
+
+The analysis suggests that happiness is associated with multiple dimensions of development. Economic conditions, represented by GDP per capita, showed the strongest standardized association in the pooled model, while social support consistently showed a strong positive relationship with Life Ladder scores.
+
+Future analyses could extend this work by using panel regression methods, country fixed effects, or clustered standard errors to better account for repeated observations within countries. Additional nonlinear models could also explore whether relationships differ across income levels or regions.
+
+# Limitations
+
+Several limitations should be considered:
+
+- The analysis identifies associations rather than causal effects.
+- Complete-case analysis may introduce selection bias if missing observations are not random.
+- Country-year observations may not be fully independent because the same countries appear across multiple years.
+- The 2022 analysis is cross-sectional and contains fewer observations.
+
+# Conclusion
+
+The regression analysis shows that economic, social, health, and institutional factors are associated with national happiness scores. In the pooled 2008-2022 model, logged GDP per capita showed the strongest standardized association with Life Ladder, followed by social support. The 2022 analysis further highlights the importance of social support, freedom to make life choices, and perceptions of corruption in explaining differences in happiness across countries.
+
+These findings provide descriptive insights into factors related to national well-being while highlighting the importance of considering broader social and institutional contexts in future research.
