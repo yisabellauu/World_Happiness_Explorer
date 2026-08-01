@@ -4,8 +4,8 @@ An end-to-end data science project analyzing global happiness trends (2008–202
 This project includes both an **interactive R Shiny application** and a **comprehensive statistical analysis report**.
 
 ## 🔗 Quick Links
-- 🚀 **[Live Interactive Shiny App](https://yisabellauuu.shinyapps.io/World-Happiness-Explorer/)**
-- 📄 **[Regression Report]()**
+-  **[Live Interactive Shiny App](https://yisabellauuu.shinyapps.io/World-Happiness-Explorer/)**
+-  **[Regression Report](https://yisabellauu.github.io/World_Happiness_Explorer/)**
 
 An interactive R Shiny application designed for exploring temporal happiness trends, analyzing bivariate relationships with socio-economic drivers, performing PCA dimensionality reduction, and dynamic linear regression modeling based on World Happiness Report data.
 
